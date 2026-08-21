@@ -100,12 +100,16 @@
     if (!photoGallery) return;
 
     const {
-      data: { user }
+      data: { user },
+      error: userError
     } = await trackerSupabase.auth.getUser();
 
-    if (!user) return;
+    if (userError || !user) {
+      photoGallery.innerHTML = "<p>Please log in to view your photos.</p>";
+      return;
+    }
 
-    const { data, error } = await trackerSupabase
+    const { data: files, error } = await trackerSupabase
       .storage
       .from("progress-photos")
       .list(user.id, {
@@ -117,47 +121,50 @@
 
     if (error) {
       console.error("Photo list error:", error);
+      photoGallery.innerHTML =
+        "<p>Unable to load your photos.</p>";
       return;
     }
 
     photoGallery.innerHTML = "";
 
-    if (!data || data.length === 0) {
+    if (!files || files.length === 0) {
       photoGallery.innerHTML =
         "<p>No progress photos yet.</p>";
       return;
     }
 
-    for (const file of data) {
+    for (const file of files) {
       const filePath = `${user.id}/${file.name}`;
 
-      const { data: signedUrlData, error: urlError } =
-        await trackerSupabase
-          .storage
-          .from("progress-photos")
-          .createSignedUrl(filePath, 3600);
+      const {
+        data: signedUrlData,
+        error: signedUrlError
+      } = await trackerSupabase
+        .storage
+        .from("progress-photos")
+        .createSignedUrl(filePath, 3600);
 
-      if (urlError) {
-        console.error("Photo URL error:", urlError);
+      if (signedUrlError) {
+        console.error("Signed URL error:", signedUrlError);
         continue;
       }
 
-      const image = document.createElement("img");
+      const container = document.createElement("div");
+      container.style.marginBottom = "24px";
 
+      const image = document.createElement("img");
       image.src = signedUrlData.signedUrl;
       image.alt = "Progress photo";
-      image.loading = "lazy";
-
       image.style.width = "100%";
-      image.style.maxWidth = "300px";
+      image.style.maxWidth = "400px";
       image.style.borderRadius = "12px";
       image.style.display = "block";
 
-      const container = document.createElement("div");
-      container.style.marginBottom = "20px";
-
       const date = document.createElement("p");
-      date.textContent = new Date(file.created_at).toLocaleDateString();
+      date.textContent = file.created_at
+        ? new Date(file.created_at).toLocaleDateString()
+        : "Progress photo";
 
       container.appendChild(date);
       container.appendChild(image);
