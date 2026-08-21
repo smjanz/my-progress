@@ -54,7 +54,36 @@
       return;
     }
 
-    saveStatus.textContent = "Saved! ✓";
+    const photoInput = document.getElementById("photo");
+
+    if (photoInput && photoInput.files.length > 0) {
+      saveStatus.textContent = "Saving check-in and uploading photo...";
+
+      const photo = photoInput.files[0];
+
+      const fileExtension = photo.name.split(".").pop();
+      const fileName = `${Date.now()}.${fileExtension}`;
+      const filePath = `${user.id}/${fileName}`;
+
+      const { error: uploadError } = await trackerSupabase
+        .storage
+        .from("progress-photos")
+        .upload(filePath, photo);
+
+      if (uploadError) {
+        console.error("Photo upload error:", uploadError);
+        saveStatus.textContent =
+          "Check-in saved, but photo upload failed: " +
+          uploadError.message;
+        return;
+      }
+
+      saveStatus.textContent = "Saved with progress photo! ✓";
+
+      photoInput.value = "";
+    } else {
+      saveStatus.textContent = "Saved! ✓";
+    }
   }
 
   function getNumber(id) {
