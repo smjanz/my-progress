@@ -8,6 +8,8 @@
   const saveStatus = document.getElementById("save-status");
   const photoGallery = document.getElementById("photo-gallery");
 
+  const progressSummary = document.getElementById("progress-summary");
+
   if (!saveButton) {
     console.error("Save button not found.");
     return;
@@ -22,7 +24,8 @@
     } = await trackerSupabase.auth.getUser();
 
     if (userError || !user) {
-      saveStatus.textContent = "Your session has expired. Please log in again.";
+      saveStatus.textContent =
+        "Your session has expired. Please log in again.";
       return;
     }
 
@@ -72,9 +75,11 @@
 
       if (uploadError) {
         console.error("Photo upload error:", uploadError);
+
         saveStatus.textContent =
           "Check-in saved, but photo upload failed: " +
           uploadError.message;
+
         return;
       }
 
@@ -84,6 +89,7 @@
     saveStatus.textContent = "Saved! ✓";
 
     await loadPhotos();
+    await loadProgress();
   }
 
   function getNumber(id) {
@@ -105,7 +111,8 @@
     } = await trackerSupabase.auth.getUser();
 
     if (userError || !user) {
-      photoGallery.innerHTML = "<p>Please log in to view your photos.</p>";
+      photoGallery.innerHTML =
+        "<p>Please log in to view your photos.</p>";
       return;
     }
 
@@ -151,17 +158,21 @@
       }
 
       const container = document.createElement("div");
+
       container.style.marginBottom = "24px";
 
       const image = document.createElement("img");
+
       image.src = signedUrlData.signedUrl;
       image.alt = "Progress photo";
+
       image.style.width = "100%";
       image.style.maxWidth = "400px";
       image.style.borderRadius = "12px";
       image.style.display = "block";
 
       const date = document.createElement("p");
+
       date.textContent = file.created_at
         ? new Date(file.created_at).toLocaleDateString()
         : "Progress photo";
@@ -173,7 +184,95 @@
     }
   }
 
+  async function loadProgress() {
+    if (!progressSummary) return;
+
+    const {
+      data: { user },
+      error: userError
+    } = await trackerSupabase.auth.getUser();
+
+    if (userError || !user) return;
+
+    const { data, error } = await trackerSupabase
+      .from("daily_checkins")
+      .select("date, weight, mood, calories")
+      .eq("user_id", user.id)
+      .not("weight", "is", null)
+      .order("date", { ascending: true });
+
+    if (error) {
+      console.error("Progress error:", error);
+      progressSummary.innerHTML =
+        "<p>Unable to load progress.</p>";
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      progressSummary.innerHTML =
+        "<p>No weight entries yet.</p>";
+      return;
+    }
+
+    const firstWeight = Number(data[0].weight);
+    const currentWeight = Number(data[data.length - 1].weight);
+
+    const change = currentWeight - firstWeight;
+
+    let changeText;
+
+    if (change < 0) {
+      changeText = `↓ ${Math.abs(change).toFixed(1)} kg`;
+    } else if (change > 0) {
+      changeText = `↑ ${change.toFixed(1)} kg`;
+    } else {
+      changeText = "No change";
+    }
+
+    let html = `
+      <div class="progress-stats">
+        <div>
+          <strong>${currentWeight.toFixed(1)} kg</strong>
+          <span>Current weight</span>
+        </div>
+
+        <div>
+          <strong>${changeText}</strong>
+          <span>Total change</span>
+        </div>
+      </div>
+
+      <h3>Weight history</h3>
+
+      <div class="weight-history">
+    `;
+
+    [...data].reverse().forEach(entry => {
+      html += `
+        <div class="weight-entry">
+          <span>${formatDate(entry.date)}</span>
+          <strong>${Number(entry.weight).toFixed(1)} kg</strong>
+        </div>
+      `;
+    });
+
+    html += "</div>";
+
+    progressSummary.innerHTML = html;
+  }
+
+  function formatDate(dateString) {
+    return new Date(
+      dateString + "T00:00:00"
+    ).toLocaleDateString(undefined, {
+      day: "numeric",
+      month: "short",
+      year: "numeric"
+    });
+  }
+
   saveButton.addEventListener("click", saveCheckin);
 
   loadPhotos();
+  loadProgress();
 })();
