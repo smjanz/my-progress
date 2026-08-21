@@ -1,4 +1,4 @@
-const supabaseClient = window.supabase.createClient(
+const trackerSupabase = window.supabase.createClient(
   window.SUPABASE_URL,
   window.SUPABASE_PUBLISHABLE_KEY
 );
@@ -12,7 +12,7 @@ async function saveCheckin() {
   const {
     data: { user },
     error: userError
-  } = await supabaseClient.auth.getUser();
+  } = await trackerSupabase.auth.getUser();
 
   if (userError || !user) {
     saveStatus.textContent = "Your session has expired. Please log in again.";
@@ -36,7 +36,7 @@ async function saveCheckin() {
     reflection: document.getElementById("reflection").value.trim()
   };
 
-  const { error } = await supabaseClient
+  const { error } = await trackerSupabase
     .from("daily_checkins")
     .upsert(checkin, {
       onConflict: "user_id,date"
