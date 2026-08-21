@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", async () => {
+(async () => {
   const supabaseClient = window.supabase.createClient(
     window.SUPABASE_URL,
     window.SUPABASE_PUBLISHABLE_KEY
@@ -55,4 +55,4 @@ document.addEventListener("DOMContentLoaded", async () => {
     await supabaseClient.auth.signOut();
     showLoggedOut();
   });
-});
+})();
