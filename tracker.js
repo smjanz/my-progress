@@ -1,64 +1,71 @@
-const trackerSupabase = window.supabase.createClient(
-  window.SUPABASE_URL,
-  window.SUPABASE_PUBLISHABLE_KEY
-);
+(function () {
+  const trackerSupabase = window.supabase.createClient(
+    window.SUPABASE_URL,
+    window.SUPABASE_PUBLISHABLE_KEY
+  );
 
-const saveButton = document.getElementById("save-checkin");
-const saveStatus = document.getElementById("save-status");
+  const saveButton = document.getElementById("save-checkin");
+  const saveStatus = document.getElementById("save-status");
 
-async function saveCheckin() {
-  saveStatus.textContent = "Saving...";
-
-  const {
-    data: { user },
-    error: userError
-  } = await trackerSupabase.auth.getUser();
-
-  if (userError || !user) {
-    saveStatus.textContent = "Your session has expired. Please log in again.";
+  if (!saveButton) {
+    console.error("Save button not found.");
     return;
   }
 
-  const today = new Date().toISOString().split("T")[0];
+  async function saveCheckin() {
+    saveStatus.textContent = "Saving...";
 
-  const checkin = {
-    user_id: user.id,
-    date: today,
-    weight: getNumber("weight"),
-    calories: getNumber("calories"),
-    protein: getNumber("protein"),
-    carbs: getNumber("carbs"),
-    fat: getNumber("fat"),
-    food: document.getElementById("food").value.trim(),
-    mood: document.getElementById("mood").value,
-    energy: getNumber("energy"),
-    hunger: getNumber("hunger"),
-    reflection: document.getElementById("reflection").value.trim()
-  };
+    const {
+      data: { user },
+      error: userError
+    } = await trackerSupabase.auth.getUser();
 
-  const { error } = await trackerSupabase
-    .from("daily_checkins")
-    .upsert(checkin, {
-      onConflict: "user_id,date"
-    });
+    if (userError || !user) {
+      saveStatus.textContent = "Your session has expired. Please log in again.";
+      return;
+    }
 
-  if (error) {
-    console.error("Save error:", error);
-    saveStatus.textContent = error.message;
-    return;
+    const today = new Date().toISOString().split("T")[0];
+
+    const checkin = {
+      user_id: user.id,
+      date: today,
+      weight: getNumber("weight"),
+      calories: getNumber("calories"),
+      protein: getNumber("protein"),
+      carbs: getNumber("carbs"),
+      fat: getNumber("fat"),
+      food: document.getElementById("food").value.trim(),
+      mood: document.getElementById("mood").value,
+      energy: getNumber("energy"),
+      hunger: getNumber("hunger"),
+      reflection: document.getElementById("reflection").value.trim()
+    };
+
+    const { error } = await trackerSupabase
+      .from("daily_checkins")
+      .upsert(checkin, {
+        onConflict: "user_id,date"
+      });
+
+    if (error) {
+      console.error("Save error:", error);
+      saveStatus.textContent = error.message;
+      return;
+    }
+
+    saveStatus.textContent = "Saved! ✓";
   }
 
-  saveStatus.textContent = "Saved! ✓";
-}
+  function getNumber(id) {
+    const element = document.getElementById(id);
 
-function getNumber(id) {
-  const value = document.getElementById(id).value;
+    if (!element || element.value === "") {
+      return null;
+    }
 
-  if (value === "") {
-    return null;
+    return Number(element.value);
   }
 
-  return Number(value);
-}
-
-saveButton.addEventListener("click", saveCheckin);
+  saveButton.addEventListener("click", saveCheckin);
+})();
